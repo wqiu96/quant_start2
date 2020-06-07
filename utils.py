@@ -34,6 +34,7 @@ def read_file(filename):
                        parse_dates=True,
                        infer_datetime_format=True)
 
-BTCUSD = read_file('BTCUSD_GEMINI.csv')
-assert_msg(BTCUSD.__len__() > 0, '读取失败')
-print(BTCUSD.head())
+if __name__ == '__main__':
+    BTCUSD = read_file('BTCUSD_GEMINI.csv')
+    assert_msg(BTCUSD.__len__() > 0, '读取失败')
+    print(BTCUSD.head())
