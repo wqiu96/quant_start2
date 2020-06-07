@@ -128,6 +128,7 @@ class ExchangeAPI:
         用当前账户剩余资金，按照市场价格全部买入
         """
         self._position = float(self._cash / (self.current_price * (1 + self._commission)))
+        self._cash = 0.0
 
     def sell(self):
         """
@@ -256,7 +257,7 @@ class SmaCross(Strategy):
 
 def main():
     BTCUSD = read_file('BTCUSD_GEMINI.csv')
-    ret = Backtest(BTCUSD, SmaCross, ExchangeAPI, 10000.0, 0.00).run()
+    ret = Backtest(BTCUSD, SmaCross, ExchangeAPI, 10000.0, 0.002).run()
     print(ret)
 
 if __name__ == '__main__':
