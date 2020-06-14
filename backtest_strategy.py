@@ -2,7 +2,10 @@ import abc
 import numpy as np
 import pandas as pd
 from typing import Callable
-from utils import assert_msg, SMA, crossover, read_file
+from utils import assert_msg, SMA, crossover, read_file, kalmanF, Max_retracement
+from matplotlib import pyplot as plt
+from sklearn.ensemble import RandomForestClassifier
+from collections import deque
 
 class Strategy(metaclass=abc.ABCMeta):
     """
@@ -48,7 +51,7 @@ class Strategy(metaclass=abc.ABCMeta):
         return self._tick
 
     @abc.abstractmethod
-    def init(self):
+    def init(self, tick):
         """
         初始化策略。在策略回测/执行过程中调用一次，用于初始化策略内部状态
         这里也可以预计算策略的辅助参数。比如根据历史行情数据；
@@ -127,14 +130,14 @@ class ExchangeAPI:
         """
         用当前账户剩余资金，按照市场价格全部买入
         """
-        self._position = float(self._cash / (self.current_price * (1 + self._commission)))
+        self._position += float(self._cash / (self.current_price * (1 + self._commission)))
         self._cash = 0.0
 
     def sell(self):
         """
         卖出当前账户剩余持仓
         """
-        self._cash = float(self._position * self.current_price * (1 - self._commission))
+        self._cash += float(self._position * self.current_price * (1 - self._commission))
         self._position = 0.0
 
     def next(self, tick):
@@ -167,7 +170,8 @@ class Backtest:
         :param commission:      float                   每次交易手续费率。如2%的手续费此处为0.02
         """
 
-
+        self._strategy_value = []
+        self._strategy_return = []
         assert_msg(issubclass(strategy_type, Strategy),'strategy_type不是一个Strategy类型')
         assert_msg(issubclass(broker_type, ExchangeAPI), 'strategy_type不是一个Strategy类型')
         assert_msg(isinstance(commission, float), 'commission不是浮点数值类型')
@@ -206,28 +210,36 @@ class Backtest:
         strategy = self._strategy
         broker = self._broker
 
-        # 策略初始化
-        strategy.init()
 
         # 设定回测开始和结束位置
         start = 100
+        # 策略初始化
+        strategy.init(start)
         end = len(self._data)
 
         # 回测主循环，更新市场状态，然后执行策略
         for i in range(start, end):
             # 注意要先把市场状态移动到第i时刻，然后再执行策略。
             broker.next(i)
+            # 记录每时每刻的市值
+            self._strategy_value.append(broker.market_value)
             strategy.next(i)
+
+        # 计算收益率变化
+        self._strategy_return = (np.array(np.array(self._strategy_value[1:]) - np.array(self._strategy_value[:-1]))
+                                /np.array(self._strategy_value[:-1]))
 
         # 完成策略执行之后，计算结果并返回
         self._results = self._compute_result(broker)
-        return self._results
+        return self._results, self._strategy_value, self._strategy_return
 
     def _compute_result(self, broker):
         s = pd.Series()
         s['初始市值'] = broker.initial_cash
         s['结束市值'] = broker.market_value
         s['收益'] = broker.market_value - broker.initial_cash
+        s['最大回撤率'] = Max_retracement(self._strategy_value)
+        s['收益波动率'] = np.std(self._strategy_return)
         return s
 
 class SmaCross(Strategy):
@@ -237,7 +249,7 @@ class SmaCross(Strategy):
     # 大窗口SMA的窗口大小，用于计算SMA慢线
     slow = 20
 
-    def init(self):
+    def init(self, tick):
         # 计算历史上每个时刻的快线和慢线
         self.sma1 = self.I(SMA, self.data.Close, self.fast)
         self.sma2 = self.I(SMA, self.data.Close, self.slow)
@@ -255,10 +267,78 @@ class SmaCross(Strategy):
         else:
             pass
 
+class KalmanFilterPredict(Strategy):
+    #使用卡尔曼滤波通过观测值得到一个滚动的估计值
+    def init(self, tick):
+        self.predict = self.I(kalmanF, self.data.Close)
+
+    def next(self, tick):
+        # 如果预测出来今天的股价
+        if self.predict[tick] > self.predict[tick - 1]:
+            self.buy()
+
+        elif self.predict[tick] < self.predict[tick - 1]:
+            self.sell()
+
+        else:
+            pass
+
+class RFPredcit(Strategy):
+    # 使用随机森林预测涨跌
+    def init(self, tick):
+        window_length = 10
+        self.classifier = RandomForestClassifier(n_estimators = 10)
+
+        # 先进先出的deque序列，设定了最长的长度，在序列超过最长长度的时候，会将头部序列移出
+        self._up_down = deque(maxlen = 100) #记录涨跌
+        self._price_list = deque(maxlen = 100) #记录价格序列
+        self._recent_prices = deque(maxlen = window_length + 2)  # 保存最近的股价
+
+        #初始化队列
+        for i in range(window_length + 2):
+            self._recent_prices.append(self.data.Close[i])
+
+        for i in range(window_length + 2, tick):
+            changes = np.diff(self._recent_prices) > 0
+            self._price_list.append(list(self._recent_prices)[0:-1])
+            self._up_down.append(changes[-1])
+
+    def next(self, tick):
+        self._recent_prices.append(tick)
+        self.classifier.fit(self._price_list, self._up_down)
+
+        #如果概率大于0.5就买入
+        if self.classifier.predict(np.array(self._recent_prices)[0:-1].reshape(1,-1)) > 0.5:
+            self.buy()
+
+        # 反之就卖出
+        else:
+            self.sell()
+
+        self._price_list.append(list(self._recent_prices)[0:-1])
+        changes = np.diff(self._recent_prices) > 0
+        self._up_down.append(changes[-1])
+
+
+
+
 def main():
     BTCUSD = read_file('BTCUSD_GEMINI.csv')
-    ret = Backtest(BTCUSD, SmaCross, ExchangeAPI, 10000.0, 0.002).run()
+    ret, strategy_value, strategy_return = Backtest(BTCUSD[10000:], RFPredcit, ExchangeAPI, 10000.0, 0.00).run()
     print(ret)
+    print(strategy_value[-1])
+    plt.xlabel('Time')
+    plt.ylabel('value')
+
+    x = [i for i in range(len(strategy_value))]
+    plt.plot(x, strategy_value, label = 'strategy Value')
+    plt.plot(x, (10000/BTCUSD.Close[10100])*BTCUSD.Close[10100:], label = 'BTCUSD Value')
+
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+
+
 
 if __name__ == '__main__':
     main()
