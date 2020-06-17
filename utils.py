@@ -26,6 +26,20 @@ def kalmanF(values):
     state_means, _ = kf.filter(values)
     return state_means[:,0]
 
+def RFfeature(values, low, midden, fast):
+    """
+    #计算随机森林所的输入
+    """
+    res = pd.DataFrame()
+    res['price'] = values
+    res['low_mean'] = pd.Series(values).rolling(low).mean()
+    res['midden_mean'] = pd.Series(values).rolling(midden).mean()
+    res['fast_mean'] = pd.Series(values).rolling(fast).mean()
+    res['low_var'] = pd.Series(values).rolling(low).var()
+    res['midden_var'] = pd.Series(values).rolling(midden).var()
+    res['fast_var'] = pd.Series(values).rolling(fast).var()
+    return res
+
 def Max_retracement(value):
     """
     计算最大回撤
