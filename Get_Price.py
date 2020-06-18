@@ -1,6 +1,6 @@
 import requests
 import pandas as pd
-
+import time
 
 # 获取Gemini交易所报价数据
 def get_price():
@@ -40,3 +40,10 @@ def get_last1000_min_price():
 if __name__ == "__main__":
     get_price()
     res = get_last1000_min_price()
+    print(res.head())
+    time.sleep(40)
+    res2 = get_last1000_min_price()
+    print(res2.head())
+    time.sleep(40)
+    res3 = get_last1000_min_price()
+    print(res3.head())

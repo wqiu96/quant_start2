@@ -45,8 +45,8 @@ def Max_retracement(value):
     计算最大回撤
     :param value: list
     """
-    max_top = 0
-    cur_top = 0
+    max_top = value[0]
+    cur_top = value[0]
     max_retracement = 0
     cur_retracement = 0
     for i in range(1,len(value)):
@@ -58,7 +58,6 @@ def Max_retracement(value):
         if cur_retracement > max_retracement:
             max_retracement = cur_retracement
             max_top = cur_top
-
     return max_retracement/max_top
 
 def crossover(series1, series2) -> bool:

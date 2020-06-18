@@ -59,7 +59,7 @@ class Strategy(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def next(self, tick):
+    def next(self, tick, *args):
         """
         步进函数，执行第tick步的策略。tick代表当前'时间'。比如data[tick]
         :param tick:
@@ -89,14 +89,14 @@ class SmaCross(Strategy):
         self.sma1 = self.I(SMA, self.data.Close, self.fast)
         self.sma2 = self.I(SMA, self.data.Close, self.slow)
 
-    def next(self, tick):
+    def next(self, tick, *args):
         # 如果此时快线刚好越过慢线，买入全部
         if crossover(self.sma1[:tick], self.sma2[:tick]):
-            self.buy()
+            self.buy(*args)
 
         # 如果是慢线刚好越过快线，卖出全部
         elif crossover(self.sma2[:tick], self.sma1[:tick]):
-            self.sell()
+            self.sell(*args)
 
         # 否则，这个时刻不执行任何操作。
         else:
@@ -107,13 +107,13 @@ class KalmanFilterPredict(Strategy):
     def init(self, tick):
         self.predict = self.I(kalmanF, self.data.Close)
 
-    def next(self, tick):
+    def next(self, tick, *args):
         # 如果预测出来今天的股价
         if self.predict[tick] > self.predict[tick - 1]:
-            self.buy()
+            self.buy(*args)
 
         elif self.predict[tick] < self.predict[tick - 1]:
-            self.sell()
+            self.sell(*args)
 
         else:
             pass
@@ -132,14 +132,14 @@ class RFPredcit(Strategy):
         #self.changes = np.diff(self.data.Close) > 0
 
 
-    def next(self, tick):
+    def next(self, tick, *args):
         #训练的时候使用昨天的数据预测今天的涨幅
         self.classifier.fit(self.feature[max(50, tick - 100):tick], self.data.Close[max(51, tick - 99):tick+1])
 
         #预测的时候使用今天的数据预测明天的涨幅，如果概率大于0.5就买入
         if self.classifier.predict(self.feature[tick:tick+1])[0] > self.data.Close[tick:tick+1][0]:
-            self.buy()
+            self.buy(*args)
 
         # 反之就卖出
         else:
-            self.sell()
+            self.sell(*args)

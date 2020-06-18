@@ -94,11 +94,13 @@ class Backtest:
         :param commission:      float                   每次交易手续费率。如2%的手续费此处为0.02
         """
 
+
+        assert_msg(issubclass(strategy_type, Strategy),'strategy_type不是一个Strategy类型')
+        assert_msg(issubclass(broker_type, ExchangeAPI), 'broker_type不是一个ExchangeAPI类型')
+        assert_msg(isinstance(commission, float), 'commission不是浮点数值类型')
+
         self._strategy_value = []
         self._strategy_return = []
-        assert_msg(issubclass(strategy_type, Strategy),'strategy_type不是一个Strategy类型')
-        assert_msg(issubclass(broker_type, ExchangeAPI), 'strategy_type不是一个Strategy类型')
-        assert_msg(isinstance(commission, float), 'commission不是浮点数值类型')
 
         data = data.copy(False)
 
