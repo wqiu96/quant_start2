@@ -23,7 +23,7 @@ payload = {"request": "/v1/order/new",
            "amount": "0.01",
            "price": "9427",
            "side": "sell",
-           "type": "exchange limit",
+           "type": "exchange limit"
            }
 #payload = {"request": "/v1/balances",
 #           "nonce": payload_nonce,

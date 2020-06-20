@@ -1,6 +1,8 @@
 import pandas as pd
 from os import path
 from pykalman import KalmanFilter
+from matplotlib import gridspec
+from matplotlib import pyplot as plt
 
 def assert_msg(condition, msg):
     if not condition:
@@ -81,6 +83,27 @@ def read_file(filename):
                        index_col=0,
                        parse_dates=True,
                        infer_datetime_format=True)
+
+def plotres(res, strategy_value):
+    x = [i for i in range(len(strategy_value))]
+    plt.figure(figsize=(7, 7))
+    gs = gridspec.GridSpec(4, 1)
+    ax1 = plt.subplot(gs[:3, 0])
+    ax1.plot(x, strategy_value, label = 'strategy Value')
+    plt.xlabel('Time')
+    plt.ylabel('value')
+    plt.grid(True)
+    plt.legend()
+    ax2 = plt.subplot(gs[3, 0])
+    plt.axis('off')
+    colLabels = res.index.values.tolist()  # 表格行名
+    print(type(colLabels[0]))
+    cellText = [res.values.tolist()]  # 表格每一行数据
+    table = ax2.table(cellText=cellText, colLabels=colLabels, loc='center', cellLoc='center', rowLoc='center')
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)  # 字体大小
+    table.scale(1, 1.5)  # 表格缩放
+    plt.show()
 
 if __name__ == '__main__':
     BTCUSD = read_file('BTCUSD_GEMINI.csv')

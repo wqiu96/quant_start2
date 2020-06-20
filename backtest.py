@@ -161,16 +161,16 @@ class Backtest:
 
     def _compute_result(self, broker):
         s = pd.Series()
-        s['初始市值'] = broker.initial_cash
-        s['结束市值'] = broker.market_value
-        s['收益'] = broker.market_value - broker.initial_cash
-        s['最大回撤率'] = Max_retracement(self._strategy_value)
-        s['收益波动率'] = np.std(self._strategy_return)
+        s['Initial value'] = broker.initial_cash
+        s['Closing value'] = broker.market_value
+        s['Return'] = broker.market_value - broker.initial_cash
+        s['Maximum retracement rate'] = Max_retracement(self._strategy_value)
+        s['Return variance'] = np.std(self._strategy_return)
         return s
 
 def main():
     BTCUSD = read_file('BTCUSD_GEMINI.csv')
-    ret, strategy_value, strategy_return = Backtest(BTCUSD[10000:], SmaCross, ExchangeAPI, 10000.0, 0.00).run()
+    ret, strategy_value, strategy_return = Backtest(BTCUSD[10000:], KalmanFilterPredict, ExchangeAPI, 10000.0, 0.00).run()
     print(ret)
     print(strategy_value[-1])
     plt.xlabel('Time')

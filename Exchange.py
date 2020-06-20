@@ -4,12 +4,12 @@ import base64
 import hmac
 import hashlib
 import datetime, time
-from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
-from utils import assert_msg, Max_retracement
+from utils import assert_msg, Max_retracement, plotres
 from Get_Price import get_price, get_last1000_min_price
 from strategy import Strategy, SmaCross, KalmanFilterPredict, RFPredcit
+
 
 class Real_ExchangeAPI:
     def __init__(self):
@@ -67,8 +67,9 @@ class Real_ExchangeAPI:
                                  data=None,
                                  headers=request_headers)
 
+        #assert_msg(type(response) == list, response)
         new_clearing_order = response.json()
-        print(new_clearing_order)
+        #print(new_clearing_order)
 
     def __balance(self, symbol ,*args):
         """
@@ -101,6 +102,7 @@ class Real_ExchangeAPI:
                                  headers=request_headers)
 
         balance = response.json()
+        #assert_msg(type(balance) == list, balance)
         res = list(filter(lambda item: item if item['currency'] == symbol else None, balance))
         return float(res[0]['available'])
 
@@ -147,14 +149,14 @@ class Real_ExchangeAPI:
         return get_price()
 
 
-    def buy(self, symbol, amount, Extype, price):
+    def buy(self, symbol, amount, Extype):
 
-        self.__exchange(symbol, amount, price, "buy", Extype)
+        self.__exchange(symbol, amount, "10000", "buy", Extype)
 
 
-    def sell(self, symbol, amount, Extype, price):
+    def sell(self, symbol, amount, Extype):
 
-        self.__exchange(symbol, amount, price, "sell", Extype)
+        self.__exchange(symbol, amount, "200", "sell", Extype)
 
 
     def next(self, tick):
@@ -192,7 +194,7 @@ class Autoexchange:
         :return:
         """
         broker = self._broker
-        tick = len(self._data) #In real excahnge, start time is always NOW
+        tick = len(self._data) - 1 #In real excahnge, start time is always NOW
         broker.next(tick)  #In real excahnge, start time is always NOW
 
         self._init_value = broker.market_value
@@ -201,17 +203,13 @@ class Autoexchange:
         t_end = datetime.datetime.now()
 
         while (t_end -  t_star).seconds <= Escape_time:
-            self._data = get_last1000_min_price() #updata the data
 
+            self._data = get_last1000_min_price() #updata the data
             strategy = self._strategy(self._broker, self._data)
             strategy.init(tick)
 
             self._strategy_value.append(broker.market_value) # 记录每时每刻的市值
-
-            ex_data = args + tuple([str(self._data[tick - 1:tick])]) #传入买卖所需数据
-            #ex_data = args + tuple([str(get_price()+2)])
-
-            strategy.next(tick, ex_data)
+            strategy.next(tick, *args)
             time.sleep(60) #rest and wait for data updata
             t_end = datetime.datetime.now()
 
@@ -222,32 +220,23 @@ class Autoexchange:
 
         # 完成策略执行之后，计算结果并返回
         self._results = self._compute_result(broker)
-        return self._results, self._strategy_value, self._strategy_return
+        return self._results, self._strategy_value
 
     def _compute_result(self, broker):
         s = pd.Series()
-        s['初始市值'] = self._init_value
-        s['结束市值'] = broker.market_value
-        s['收益'] = broker.market_value - self._init_value
-        s['最大回撤率'] = Max_retracement(self._strategy_value)
-        s['收益波动率'] = np.std(self._strategy_return)
+        s['Initial value'] = self._init_value
+        s['Closing value'] = broker.market_value
+        s['Return'] = broker.market_value - self._init_value
+        s['Maximum retracement rate'] = Max_retracement(self._strategy_value)
+        s['Return variance'] = np.std(self._strategy_return)
+        s = s.round(2)
         return s
 
 def main():
-    ret, strategy_value, strategy_return = Autoexchange(SmaCross, Real_ExchangeAPI).run(900,"btcusd", "1", "exchange limit")
-    print(ret)
+    res, strategy_value = Autoexchange(KalmanFilterPredict, Real_ExchangeAPI).run(7200,"btcusd", "1", "exchange limit")
+    print(res)
     print(strategy_value[-1])
-    plt.xlabel('Time')
-    plt.ylabel('value')
-
-    x = [i for i in range(len(strategy_value))]
-    plt.plot(x, strategy_value, label = 'strategy Value')
-    #plt.plot(x, (10000/BTCUSD.Close[10100])*BTCUSD.Close[10100:], label = 'BTCUSD Value')
-
-    plt.grid(True)
-    plt.legend()
-    plt.show()
-
+    plotres(res, strategy_value)
 
 
 if __name__ == '__main__':

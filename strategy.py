@@ -59,7 +59,7 @@ class Strategy(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def next(self, tick, *args):
+    def next(self, tick: int, *args) -> None:
         """
         步进函数，执行第tick步的策略。tick代表当前'时间'。比如data[tick]
         :param tick:
@@ -67,11 +67,11 @@ class Strategy(metaclass=abc.ABCMeta):
         """
         pass
 
-    def buy(self):
-        self._broker.buy()
+    def buy(self,*args):
+        self._broker.buy(*args)
 
-    def sell(self):
-        self._broker.sell()
+    def sell(self,*args):
+        self._broker.sell(*args)
 
     @property
     def data(self):
@@ -100,6 +100,7 @@ class SmaCross(Strategy):
 
         # 否则，这个时刻不执行任何操作。
         else:
+
             pass
 
 class KalmanFilterPredict(Strategy):
