@@ -1,8 +1,9 @@
 import abc
 import numpy as np
 from typing import Callable
-from utils import assert_msg, SMA, crossover, kalmanF, RFfeature
+from utils import assert_msg, SMA, crossover, kalmanF, RFfeature, save_strategy_value
 from sklearn.ensemble import RandomForestRegressor
+
 
 class Strategy(metaclass=abc.ABCMeta):
     """
@@ -77,6 +78,7 @@ class Strategy(metaclass=abc.ABCMeta):
     def data(self):
         return self._data
 
+
 class SmaCross(Strategy):
     # 小窗口SMA的窗口大小，用于计算SMA快线
     fast = 10
@@ -103,6 +105,10 @@ class SmaCross(Strategy):
 
             pass
 
+        if not self._broker._test:
+            save_strategy_value(self.data.Close[tick])
+
+
 class KalmanFilterPredict(Strategy):
     #使用卡尔曼滤波通过观测值得到一个滚动的估计值
     def init(self, tick):
@@ -118,6 +124,10 @@ class KalmanFilterPredict(Strategy):
 
         else:
             pass
+
+        if not self._broker._test:
+            save_strategy_value(self.data.Close[tick])
+
 
 class RFPredcit(Strategy):
     # 使用随机森林预测涨跌
@@ -137,10 +147,12 @@ class RFPredcit(Strategy):
         #训练的时候使用昨天的数据预测今天的涨幅
         self.classifier.fit(self.feature[max(50, tick - 100):tick], self.data.Close[max(51, tick - 99):tick+1])
 
-        #预测的时候使用今天的数据预测明天的涨幅，如果概率大于0.5就买入
-        if self.classifier.predict(self.feature[tick:tick+1])[0] > self.data.Close[tick:tick+1][0]:
+        #预测的时候使用今天的数据预测明天的价格，如果概率大于0.5就买入
+        if self.classifier.predict(self.feature[tick:tick+1])[0] > self.data.Close[tick]:
             self.buy(*args)
 
         # 反之就卖出
         else:
             self.sell(*args)
+        if not self._broker._test:
+            save_strategy_value(self.data.Close[tick])

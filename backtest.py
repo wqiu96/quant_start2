@@ -14,6 +14,7 @@ class ExchangeAPI:
         self._position = 0
         self._cash = cash
         self._i = 0
+        self._test = True
 
     @property
     def cash(self):
@@ -170,7 +171,7 @@ class Backtest:
 
 def main():
     BTCUSD = read_file('BTCUSD_GEMINI.csv')
-    ret, strategy_value, strategy_return = Backtest(BTCUSD[10000:], KalmanFilterPredict, ExchangeAPI, 10000.0, 0.00).run()
+    ret, strategy_value, strategy_return = Backtest(BTCUSD[10000:], RFPredcit, ExchangeAPI, 10000.0, 0.00).run()
     print(ret)
     print(strategy_value[-1])
     plt.xlabel('Time')

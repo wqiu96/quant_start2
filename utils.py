@@ -3,16 +3,20 @@ from os import path
 from pykalman import KalmanFilter
 from matplotlib import gridspec
 from matplotlib import pyplot as plt
+import sqlite3
+
 
 def assert_msg(condition, msg):
     if not condition:
         raise Exception(msg)
+
 
 def SMA(values, n):
     """
     返回简单滑动平均
     """
     return pd.Series(values).rolling(n).mean()
+
 
 def kalmanF(values):
     """
@@ -28,6 +32,7 @@ def kalmanF(values):
     state_means, _ = kf.filter(values)
     return state_means[:,0]
 
+
 def RFfeature(values, low, midden, fast):
     """
     #计算随机森林所的输入
@@ -41,6 +46,7 @@ def RFfeature(values, low, midden, fast):
     res['midden_var'] = pd.Series(values).rolling(midden).var()
     res['fast_var'] = pd.Series(values).rolling(fast).var()
     return res
+
 
 def Max_retracement(value):
     """
@@ -62,6 +68,7 @@ def Max_retracement(value):
             max_top = cur_top
     return max_retracement/max_top
 
+
 def crossover(series1, series2) -> bool:
     """
     检查两个序列是否在结尾交叉
@@ -70,6 +77,7 @@ def crossover(series1, series2) -> bool:
     :return:        如果交叉返回True, 反之返回False
     """
     return series1[-2] < series2[-2] and series1[-1] > series2[-1]
+
 
 def read_file(filename):
     # 获取文件绝对路径
@@ -83,6 +91,7 @@ def read_file(filename):
                        index_col=0,
                        parse_dates=True,
                        infer_datetime_format=True)
+
 
 def plotres(res, strategy_value):
     x = [i for i in range(len(strategy_value))]
@@ -104,6 +113,14 @@ def plotres(res, strategy_value):
     table.set_fontsize(10)  # 字体大小
     table.scale(1, 1.5)  # 表格缩放
     plt.show()
+
+
+def save_strategy_value(price):
+    conn = sqlite3.connect('D:\\try\\quant_start2\\test.db')
+    df = pd.DataFrame({"strategy": price}, index = [0])
+    df.to_sql("strategy_value", conn, if_exists='append')
+    conn.close()
+
 
 if __name__ == '__main__':
     BTCUSD = read_file('BTCUSD_GEMINI.csv')

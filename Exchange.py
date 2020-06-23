@@ -9,9 +9,10 @@ import pandas as pd
 from utils import assert_msg, Max_retracement, plotres
 from Get_Price import get_price, get_last1000_min_price
 from strategy import Strategy, SmaCross, KalmanFilterPredict, RFPredcit
+import sqlite3
 
 
-class Real_ExchangeAPI:
+class RealExchangeAPI:
     def __init__(self):
         self._base_url = "https://api.sandbox.gemini.com"
         self._exendpoint = "/v1/order/new"
@@ -21,7 +22,7 @@ class Real_ExchangeAPI:
         self.__gemini_api_secret = "CqLUV7NqU9yqiSqLxX8fZNZrktE".encode()
         self._inital_btc= self.__balance('BTC')
         self._inital_cash = self.__balance('USD')
-
+        self._test = False
 
     def __exchange(self, symbol, amount, price, side, Extype):
         """
@@ -148,16 +149,13 @@ class Real_ExchangeAPI:
         """
         return get_price()
 
-
     def buy(self, symbol, amount, Extype):
 
         self.__exchange(symbol, amount, "10000", "buy", Extype)
 
-
     def sell(self, symbol, amount, Extype):
 
         self.__exchange(symbol, amount, "200", "sell", Extype)
-
 
     def next(self, tick):
         self._i = tick
@@ -174,11 +172,11 @@ class Autoexchange:
 
     def __init__(self,
                  strategy_type: type(Strategy),
-                 broker_type: type(Real_ExchangeAPI),
+                 broker_type: type(RealExchangeAPI),
                  ):
 
         assert_msg(issubclass(strategy_type, Strategy),'strategy_type不是一个Strategy类型')
-        assert_msg(issubclass(broker_type, Real_ExchangeAPI), 'strategy_type不是一个Real_ExchangeAPI类型')
+        assert_msg(issubclass(broker_type, RealExchangeAPI), 'strategy_type不是一个Real ExchangeAPI类型')
 
         self._strategy_value = []
         self._strategy_return = []
@@ -209,6 +207,13 @@ class Autoexchange:
             strategy.init(tick)
 
             self._strategy_value.append(broker.market_value) # 记录每时每刻的市值
+
+            #把每时每刻的市值记录到数据库
+            conn = sqlite3.connect('D:\\try\\quant_start2\\test.db')
+            df = pd.DataFrame({"Market_value": self._strategy_value[-1]}, index=[0])
+            df.to_sql("Market_value", conn, if_exists='append')
+            conn.close()
+
             strategy.next(tick, *args)
             time.sleep(60) #rest and wait for data updata
             t_end = datetime.datetime.now()
@@ -232,8 +237,9 @@ class Autoexchange:
         s = s.round(2)
         return s
 
+
 def main():
-    res, strategy_value = Autoexchange(KalmanFilterPredict, Real_ExchangeAPI).run(7200,"btcusd", "1", "exchange limit")
+    res, strategy_value = Autoexchange(KalmanFilterPredict, RealExchangeAPI).run(120,"btcusd", "1", "exchange limit")
     print(res)
     print(strategy_value[-1])
     plotres(res, strategy_value)

@@ -3,6 +3,9 @@ import json
 import ssl
 import time
 import websocket
+import pandas as pd
+import sqlite3
+import config
 
 class OrderBook(object):
 
@@ -82,5 +85,45 @@ class Crawler:
             f.write(json.dumps(output) + '\n')
 
 
+class CrawlerToSql:
+    def __init__(self, symbol, limit):
+        self.limit = limit
+        self.orderbook = OrderBook(limit=self.limit)
+
+        self.ws = websocket.WebSocketApp('wss://api.gemini.com/v1/marketdata/{}'.format(symbol),
+                                        on_message = self.on_message)
+        self.ws.run_forever(sslopt={'cert_reqs': ssl.CERT_NONE})
+
+    def on_message(self, message):
+        #对收到的信息进行处理， 然后发送给 orderbook
+        data = json.loads(message)
+        for event in data['events']:
+            price, amount, direction = float(event['price']), float(event['remaining']), event['side']
+            self.orderbook.insert(price, amount, direction)
+
+        #整理 orderbook，排序， 只选取我们需要的前几个
+        self.orderbook.sort_and_truncate()
+        self.ws.close()
+
+    def save_to_sql(self):
+
+        bids, asks = self.orderbook.get_copy_of_bids_and_asks()
+        bids_price = pd.DataFrame(dict(zip([str(i) + '_bid_price' for i in range(1, self.limit + 1)],
+                              [bids[i][0] for i in range(0, self.limit)])), index=[0])
+        bids_amount = pd.DataFrame(dict(zip([str(i) + '_bid_amount' for i in range(1, self.limit + 1)],
+                              [bids[i][1] for i in range(0, self.limit)])), index=[0])
+        asks_price = pd.DataFrame(dict(zip([str(i) + '_ask_price' for i in range(1, self.limit + 1)],
+                              [bids[i][0] for i in range(0, self.limit)])), index=[0])
+        asks_amount = pd.DataFrame(dict(zip([str(i) + '_ask_amount' for i in range(1, self.limit + 1)],
+                              [bids[i][1] for i in range(0, self.limit)])), index=[0])
+
+        conn = sqlite3.connect('D:\\try\\quant_start2\\test.db')
+        bids_price.to_sql("bids_price", conn, if_exists='append')
+        bids_amount.to_sql("bids_amount", conn, if_exists='append')
+        asks_price.to_sql("asks_price", conn, if_exists='append')
+        asks_amount.to_sql("asks_amount", conn, if_exists='append')
+        conn.close()
+
 if __name__ == '__main__':
-    crawler = Crawler(symbol='BTCUSD', output_file='BTCUSD.txt')
+    #crawler = Crawler(symbol='BTCUSD', output_file='BTCUSD.txt')
+    CrawlerToSql(symbol='BTCUSD',limit = 5).save_to_sql()
