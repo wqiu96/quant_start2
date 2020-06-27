@@ -105,17 +105,17 @@ class CrawlerToSql:
         self.orderbook.sort_and_truncate()
         self.ws.close()
 
-    def save_to_sql(self):
+    def save_to_sql(self, t_stamp):
 
         bids, asks = self.orderbook.get_copy_of_bids_and_asks()
         bids_price = pd.DataFrame(dict(zip([str(i) + '_bid_price' for i in range(1, self.limit + 1)],
-                              [bids[i][0] for i in range(0, self.limit)])), index=[0])
+                              [bids[i][0] for i in range(0, self.limit)])), index=[t_stamp])
         bids_amount = pd.DataFrame(dict(zip([str(i) + '_bid_amount' for i in range(1, self.limit + 1)],
-                              [bids[i][1] for i in range(0, self.limit)])), index=[0])
+                              [bids[i][1] for i in range(0, self.limit)])), index=[t_stamp])
         asks_price = pd.DataFrame(dict(zip([str(i) + '_ask_price' for i in range(1, self.limit + 1)],
-                              [bids[i][0] for i in range(0, self.limit)])), index=[0])
+                              [bids[i][0] for i in range(0, self.limit)])), index=[t_stamp])
         asks_amount = pd.DataFrame(dict(zip([str(i) + '_ask_amount' for i in range(1, self.limit + 1)],
-                              [bids[i][1] for i in range(0, self.limit)])), index=[0])
+                              [bids[i][1] for i in range(0, self.limit)])), index=[t_stamp])
 
         conn = sqlite3.connect('D:\\try\\quant_start2\\test.db')
         bids_price.to_sql("bids_price", conn, if_exists='append')
@@ -126,4 +126,4 @@ class CrawlerToSql:
 
 if __name__ == '__main__':
     #crawler = Crawler(symbol='BTCUSD', output_file='BTCUSD.txt')
-    CrawlerToSql(symbol='BTCUSD',limit = 5).save_to_sql()
+    CrawlerToSql(symbol='BTCUSD',limit = 5).save_to_sql(t_stamp)

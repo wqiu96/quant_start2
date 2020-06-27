@@ -106,7 +106,6 @@ def plotres(res, strategy_value):
     ax2 = plt.subplot(gs[3, 0])
     plt.axis('off')
     colLabels = res.index.values.tolist()  # 表格行名
-    print(type(colLabels[0]))
     cellText = [res.values.tolist()]  # 表格每一行数据
     table = ax2.table(cellText=cellText, colLabels=colLabels, loc='center', cellLoc='center', rowLoc='center')
     table.auto_set_font_size(False)
@@ -115,9 +114,9 @@ def plotres(res, strategy_value):
     plt.show()
 
 
-def save_strategy_value(price):
+def save_strategy_value(price, t_stamp, side):
     conn = sqlite3.connect('D:\\try\\quant_start2\\test.db')
-    df = pd.DataFrame({"strategy": price}, index = [0])
+    df = pd.DataFrame({"strategy": price, "side": side}, index = [t_stamp])
     df.to_sql("strategy_value", conn, if_exists='append')
     conn.close()
 

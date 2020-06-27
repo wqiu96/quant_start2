@@ -3,6 +3,7 @@ import numpy as np
 from typing import Callable
 from utils import assert_msg, SMA, crossover, kalmanF, RFfeature, save_strategy_value
 from sklearn.ensemble import RandomForestRegressor
+from orderbook import CrawlerToSql
 
 
 class Strategy(metaclass=abc.ABCMeta):
@@ -60,7 +61,7 @@ class Strategy(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def next(self, tick: int, *args) -> None:
+    def next(self, tick: int, t_stamp, *args) -> None:
         """
         步进函数，执行第tick步的策略。tick代表当前'时间'。比如data[tick]
         :param tick:
@@ -86,19 +87,23 @@ class SmaCross(Strategy):
     # 大窗口SMA的窗口大小，用于计算SMA慢线
     slow = 20
 
+    side = ''
+
     def init(self, tick):
         # 计算历史上每个时刻的快线和慢线
         self.sma1 = self.I(SMA, self.data.Close, self.fast)
         self.sma2 = self.I(SMA, self.data.Close, self.slow)
 
-    def next(self, tick, *args):
+    def next(self, tick, t_stamp,*args):
         # 如果此时快线刚好越过慢线，买入全部
         if crossover(self.sma1[:tick], self.sma2[:tick]):
             self.buy(*args)
+            side = "buy"
 
         # 如果是慢线刚好越过快线，卖出全部
         elif crossover(self.sma2[:tick], self.sma1[:tick]):
             self.sell(*args)
+            side = "sell"
 
         # 否则，这个时刻不执行任何操作。
         else:
@@ -106,53 +111,60 @@ class SmaCross(Strategy):
             pass
 
         if not self._broker._test:
-            save_strategy_value(self.data.Close[tick])
+            CrawlerToSql(symbol='BTCUSD', limit=5).save_to_sql(t_stamp)
+            save_strategy_value(self.data.Close[tick], t_stamp, side)
 
 
 class KalmanFilterPredict(Strategy):
-    #使用卡尔曼滤波通过观测值得到一个滚动的估计值
+    # 使用卡尔曼滤波通过观测值得到一个滚动的估计值
+    side = ''
     def init(self, tick):
         self.predict = self.I(kalmanF, self.data.Close)
 
-    def next(self, tick, *args):
+    def next(self, tick, t_stamp,*args):
         # 如果预测出来今天的股价
         if self.predict[tick] > self.predict[tick - 1]:
             self.buy(*args)
+            side = "buy"
 
         elif self.predict[tick] < self.predict[tick - 1]:
             self.sell(*args)
+            side = "sell"
 
         else:
             pass
 
         if not self._broker._test:
-            save_strategy_value(self.data.Close[tick])
-
+            CrawlerToSql(symbol='BTCUSD', limit=5).save_to_sql(t_stamp)
+            save_strategy_value(self.data.Close[tick], t_stamp, side)
 
 class RFPredcit(Strategy):
     # 使用随机森林预测涨跌
+    side = ''
     def init(self, tick):
         low = 3
         midden = 6
         fast = 12
         self.classifier = RandomForestRegressor(n_estimators = 20)
 
-        #计算所需特征
+        # 计算所需特征
         self.feature = RFfeature(self.data.Close, low, midden, fast)
-        #计算涨跌指标
-        #self.changes = np.diff(self.data.Close) > 0
+        # 计算涨跌指标
+        # self.changes = np.diff(self.data.Close) > 0
 
 
-    def next(self, tick, *args):
-        #训练的时候使用昨天的数据预测今天的涨幅
+    def next(self, tick, t_stamp,*args):
+        # 训练的时候使用昨天的数据预测今天的涨幅
         self.classifier.fit(self.feature[max(50, tick - 100):tick], self.data.Close[max(51, tick - 99):tick+1])
 
-        #预测的时候使用今天的数据预测明天的价格，如果概率大于0.5就买入
+        # 预测的时候使用今天的数据预测明天的价格，如果概率大于0.5就买入
         if self.classifier.predict(self.feature[tick:tick+1])[0] > self.data.Close[tick]:
             self.buy(*args)
-
+            side = "buy"
         # 反之就卖出
         else:
             self.sell(*args)
+            side = "sell"
         if not self._broker._test:
-            save_strategy_value(self.data.Close[tick])
+            CrawlerToSql(symbol='BTCUSD', limit=5).save_to_sql(t_stamp)
+            save_strategy_value(self.data.Close[tick], t_stamp, side)

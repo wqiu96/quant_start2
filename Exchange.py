@@ -122,6 +122,11 @@ class RealExchangeAPI:
         return self.__balance('BTC')
 
     @property
+    def position_value(self):
+
+        return self.position*get_price()
+
+    @property
     def initial_cash(self):
         """
         :return: 返回初始现金数量
@@ -201,6 +206,8 @@ class Autoexchange:
         t_end = datetime.datetime.now()
 
         while (t_end -  t_star).seconds <= Escape_time:
+            t = datetime.datetime.now()
+            t_stamp = datetime.datetime.strftime(t, '%Y-%m-%d %H:%M:%S')
 
             self._data = get_last1000_min_price() #updata the data
             strategy = self._strategy(self._broker, self._data)
@@ -210,13 +217,18 @@ class Autoexchange:
 
             #把每时每刻的市值记录到数据库
             conn = sqlite3.connect('D:\\try\\quant_start2\\test.db')
-            df = pd.DataFrame({"Market_value": self._strategy_value[-1]}, index=[0])
+            df = pd.DataFrame({"Market_value": self._strategy_value[-1],
+                               "BTC_value": self._broker.position_value,
+                               "Cash": self._broker.cash}, index=[pd.Timestamp(t_stamp)])
+
             df.to_sql("Market_value", conn, if_exists='append')
             conn.close()
 
-            strategy.next(tick, *args)
+            strategy.next(tick, t_stamp, *args)
             time.sleep(60) #rest and wait for data updata
             t_end = datetime.datetime.now()
+
+        self._strategy_value.append(broker.market_value)
 
 
         # 计算收益率变化
@@ -239,7 +251,7 @@ class Autoexchange:
 
 
 def main():
-    res, strategy_value = Autoexchange(KalmanFilterPredict, RealExchangeAPI).run(120,"btcusd", "1", "exchange limit")
+    res, strategy_value = Autoexchange(KalmanFilterPredict, RealExchangeAPI).run(7200, "btcusd", "1", "exchange limit")
     print(res)
     print(strategy_value[-1])
     plotres(res, strategy_value)

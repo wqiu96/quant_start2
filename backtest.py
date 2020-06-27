@@ -3,6 +3,8 @@ import pandas as pd
 from utils import assert_msg, read_file, Max_retracement
 from matplotlib import pyplot as plt
 from strategy import Strategy, SmaCross, KalmanFilterPredict, RFPredcit
+import datetime
+
 
 class ExchangeAPI:
     def __init__(self, data, cash, commission):
@@ -146,11 +148,13 @@ class Backtest:
 
         # 回测主循环，更新市场状态，然后执行策略
         for i in range(start, end):
+            t = datetime.datetime.now()
+            t_stamp = datetime.datetime.strftime(t, '%Y-%m-%d %H:%M:%S')
             # 注意要先把市场状态移动到第i时刻，然后再执行策略。
             broker.next(i)
             # 记录每时每刻的市值
             self._strategy_value.append(broker.market_value)
-            strategy.next(i)
+            strategy.next(i, t_stamp)
 
         # 计算收益率变化
         self._strategy_return = (np.array(np.array(self._strategy_value[1:]) - np.array(self._strategy_value[:-1]))
@@ -171,7 +175,7 @@ class Backtest:
 
 def main():
     BTCUSD = read_file('BTCUSD_GEMINI.csv')
-    ret, strategy_value, strategy_return = Backtest(BTCUSD[10000:], RFPredcit, ExchangeAPI, 10000.0, 0.00).run()
+    ret, strategy_value, strategy_return = Backtest(BTCUSD[10000:], KalmanFilterPredict, ExchangeAPI, 10000.0, 0.00).run()
     print(ret)
     print(strategy_value[-1])
     plt.xlabel('Time')
