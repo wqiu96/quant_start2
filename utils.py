@@ -5,7 +5,6 @@ from matplotlib import gridspec
 from matplotlib import pyplot as plt
 import sqlite3
 
-
 def assert_msg(condition, msg):
     if not condition:
         raise Exception(msg)
@@ -116,8 +115,8 @@ def plotres(res, strategy_value):
 
 def save_strategy_value(price, t_stamp, side):
     conn = sqlite3.connect('D:\\try\\quant_start2\\test.db')
-    df = pd.DataFrame({"strategy": price, "side": side}, index = [t_stamp])
-    df.to_sql("strategy_value", conn, if_exists='append')
+    df = pd.DataFrame({"strategy": price, "side": side, "Date": pd.Timestamp(t_stamp)}, index = [0])
+    df.to_sql("strategy_value", conn, index=False,if_exists='append')
     conn.close()
 
 

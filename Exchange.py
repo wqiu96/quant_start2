@@ -10,6 +10,8 @@ from utils import assert_msg, Max_retracement, plotres
 from Get_Price import get_price, get_last1000_min_price
 from strategy import Strategy, SmaCross, KalmanFilterPredict, RFPredcit
 import sqlite3
+from sqlalchemy.types import DateTime
+
 
 
 class RealExchangeAPI:
@@ -208,7 +210,7 @@ class Autoexchange:
         while (t_end -  t_star).seconds <= Escape_time:
             t = datetime.datetime.now()
             t_stamp = datetime.datetime.strftime(t, '%Y-%m-%d %H:%M:%S')
-
+            t_stamp = pd.Timestamp(t_stamp)
             self._data = get_last1000_min_price() #updata the data
             strategy = self._strategy(self._broker, self._data)
             strategy.init(tick)
@@ -219,7 +221,8 @@ class Autoexchange:
             conn = sqlite3.connect('D:\\try\\quant_start2\\test.db')
             df = pd.DataFrame({"Market_value": self._strategy_value[-1],
                                "BTC_value": self._broker.position_value,
-                               "Cash": self._broker.cash}, index=[pd.Timestamp(t_stamp)])
+                               "Cash": self._broker.cash,
+                               "Date": t_stamp}, index=[0])
 
             df.to_sql("Market_value", conn, if_exists='append')
             conn.close()
@@ -251,7 +254,7 @@ class Autoexchange:
 
 
 def main():
-    res, strategy_value = Autoexchange(KalmanFilterPredict, RealExchangeAPI).run(7200, "btcusd", "1", "exchange limit")
+    res, strategy_value = Autoexchange(KalmanFilterPredict, RealExchangeAPI).run(600, "btcusd", "1", "exchange limit")
     print(res)
     print(strategy_value[-1])
     plotres(res, strategy_value)

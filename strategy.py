@@ -81,20 +81,18 @@ class Strategy(metaclass=abc.ABCMeta):
 
 
 class SmaCross(Strategy):
-    # 小窗口SMA的窗口大小，用于计算SMA快线
-    fast = 10
-
-    # 大窗口SMA的窗口大小，用于计算SMA慢线
-    slow = 20
-
-    side = ''
-
     def init(self, tick):
+        # 小窗口SMA的窗口大小，用于计算SMA快线
+        self.fast = 10
+
+        # 大窗口SMA的窗口大小，用于计算SMA慢线
+        self.slow = 20
         # 计算历史上每个时刻的快线和慢线
         self.sma1 = self.I(SMA, self.data.Close, self.fast)
         self.sma2 = self.I(SMA, self.data.Close, self.slow)
 
     def next(self, tick, t_stamp,*args):
+        side = ''
         # 如果此时快线刚好越过慢线，买入全部
         if crossover(self.sma1[:tick], self.sma2[:tick]):
             self.buy(*args)
@@ -117,11 +115,11 @@ class SmaCross(Strategy):
 
 class KalmanFilterPredict(Strategy):
     # 使用卡尔曼滤波通过观测值得到一个滚动的估计值
-    side = ''
     def init(self, tick):
         self.predict = self.I(kalmanF, self.data.Close)
 
     def next(self, tick, t_stamp,*args):
+        side = ''
         # 如果预测出来今天的股价
         if self.predict[tick] > self.predict[tick - 1]:
             self.buy(*args)
@@ -140,7 +138,6 @@ class KalmanFilterPredict(Strategy):
 
 class RFPredcit(Strategy):
     # 使用随机森林预测涨跌
-    side = ''
     def init(self, tick):
         low = 3
         midden = 6
@@ -154,6 +151,7 @@ class RFPredcit(Strategy):
 
 
     def next(self, tick, t_stamp,*args):
+        side = ''
         # 训练的时候使用昨天的数据预测今天的涨幅
         self.classifier.fit(self.feature[max(50, tick - 100):tick], self.data.Close[max(51, tick - 99):tick+1])
 

@@ -5,7 +5,6 @@ import time
 import websocket
 import pandas as pd
 import sqlite3
-import config
 
 class OrderBook(object):
 
@@ -108,20 +107,33 @@ class CrawlerToSql:
     def save_to_sql(self, t_stamp):
 
         bids, asks = self.orderbook.get_copy_of_bids_and_asks()
-        bids_price = pd.DataFrame(dict(zip([str(i) + '_bid_price' for i in range(1, self.limit + 1)],
-                              [bids[i][0] for i in range(0, self.limit)])), index=[t_stamp])
-        bids_amount = pd.DataFrame(dict(zip([str(i) + '_bid_amount' for i in range(1, self.limit + 1)],
-                              [bids[i][1] for i in range(0, self.limit)])), index=[t_stamp])
-        asks_price = pd.DataFrame(dict(zip([str(i) + '_ask_price' for i in range(1, self.limit + 1)],
-                              [bids[i][0] for i in range(0, self.limit)])), index=[t_stamp])
-        asks_amount = pd.DataFrame(dict(zip([str(i) + '_ask_amount' for i in range(1, self.limit + 1)],
-                              [bids[i][1] for i in range(0, self.limit)])), index=[t_stamp])
+
+        bids_price_dict = dict(zip([str(i) + '_bid' for i in range(1, self.limit + 1)],
+                 [bids[i][0] for i in range(0, self.limit)]))
+        bids_price_dict["Date"] = t_stamp
+
+        bids_amount_dict = dict(zip([str(i) + '_bid' for i in range(1, self.limit + 1)],
+                 [bids[i][1] for i in range(0, self.limit)]))
+        bids_amount_dict["Date"] = t_stamp
+
+        asks_price_dict = dict(zip([str(i) + '_ask' for i in range(1, self.limit + 1)],
+                 [bids[i][0] for i in range(0, self.limit)]))
+        asks_price_dict["Date"] = t_stamp
+
+        asks_amount_dict = dict(zip([str(i) + '_ask' for i in range(1, self.limit + 1)],
+                 [bids[i][1] for i in range(0, self.limit)]))
+        asks_amount_dict["Date"] = t_stamp
+
+        bids_price = pd.DataFrame(bids_price_dict, index=[0])
+        bids_amount = pd.DataFrame(bids_amount_dict, index=[0])
+        asks_price = pd.DataFrame(asks_price_dict, index=[0])
+        asks_amount = pd.DataFrame(asks_amount_dict, index=[0])
 
         conn = sqlite3.connect('D:\\try\\quant_start2\\test.db')
-        bids_price.to_sql("bids_price", conn, if_exists='append')
-        bids_amount.to_sql("bids_amount", conn, if_exists='append')
-        asks_price.to_sql("asks_price", conn, if_exists='append')
-        asks_amount.to_sql("asks_amount", conn, if_exists='append')
+        bids_price.to_sql("bids_price", conn, index=False, if_exists='append')
+        bids_amount.to_sql("bids_amount", conn, index=False, if_exists='append')
+        asks_price.to_sql("asks_price", conn, index=False,if_exists='append')
+        asks_amount.to_sql("asks_amount", conn, index=False, if_exists='append')
         conn.close()
 
 if __name__ == '__main__':
